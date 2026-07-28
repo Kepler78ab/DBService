@@ -1,0 +1,79 @@
+# ======== Build output directories ========
+# 忽略 bin/ 下所有内容，但保留 debug/ 和 release/ 目录
+client/bin/*
+!client/bin/debug/
+!client/bin/release/
+server/bin/*
+!server/bin/debug/
+!server/bin/release/
+
+# ======== 编译中间产物 ========
+# 对象文件
+bin/debug/*.o
+bin/debug/*.obj
+bin/release/*.o
+bin/release/*.obj
+bin/debug/*.o
+bin/debug/*.obj
+bin/release/*.o
+bin/release/*.obj
+
+# MOC / RCC / UIC 生成的源码
+bin/debug/moc_*.cpp
+bin/debug/moc_predefs.h
+bin/debug/qrc_*.cpp
+bin/debug/ui_*.h
+bin/release/moc_*.cpp
+bin/release/moc_predefs.h
+bin/release/qrc_*.cpp
+bin/release/ui_*.h
+bin/debug/moc_*.cpp
+bin/debug/moc_predefs.h
+bin/debug/qrc_*.cpp
+bin/debug/ui_*.h
+bin/release/moc_*.cpp
+bin/release/moc_predefs.h
+bin/release/qrc_*.cpp
+bin/release/ui_*.h
+
+# 静态库 / Makefile / qmake 缓存
+bin/debug/*.a
+bin/debug/*.lib
+bin/debug/Makefile*
+bin/debug/.qmake.stash
+bin/release/*.a
+bin/release/*.lib
+bin/release/Makefile*
+bin/release/.qmake.stash
+bin/debug/*.a
+bin/debug/*.lib
+bin/debug/Makefile*
+bin/debug/.qmake.stash
+bin/release/*.a
+bin/release/*.lib
+bin/release/Makefile*
+bin/release/.qmake.stash
+
+# ======== IDE 项目文件 ========
+*.pro.user
+*.pro.user.*
+.qtcreator/
+
+# ======== DBService_v1.2 独立项目 ========
+# 编译中间产物
+build/debug/*.o
+build/debug/*.obj
+build/debug/moc_*.cpp
+build/debug/moc_predefs.h
+build/debug/*.a
+build/debug/*.lib
+build/debug/Makefile*
+build/release/*.o
+build/release/*.obj
+build/release/moc_*.cpp
+build/release/moc_predefs.h
+build/release/*.a
+build/release/*.lib
+build/release/Makefile*
+.qmake.stash
+bin/

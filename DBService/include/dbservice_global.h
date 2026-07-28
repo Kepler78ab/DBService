@@ -1,0 +1,12 @@
+#ifndef DBSERVICE_GLOBAL_H
+#define DBSERVICE_GLOBAL_H
+
+#include <QtGlobal>
+
+#if defined(DBSERVICE_LIBRARY)
+#  define DBSERVICE_EXPORT Q_DECL_EXPORT
+#else
+#  define DBSERVICE_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // DBSERVICE_GLOBAL_H

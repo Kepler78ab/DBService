@@ -1,0 +1,51 @@
+#ifndef DBCONFIG_H
+#define DBCONFIG_H
+
+#include <QString>
+#include <QtGlobal>
+
+/**
+ * @brief 数据库驱动类型枚举
+ * @note 支持的Qt驱动：QMYSQL, QOCI, QODBC, QPSQL, QSQLITE, QDB2
+ */
+enum class DBDriverType
+{
+    MySQL       = 0,  ///< MySQL 数据库 (QMYSQL)
+    Oracle      = 1,  ///< Oracle 数据库 (QOCI)
+    ODBC        = 2,  ///< ODBC 数据源 (QODBC)
+    PostgreSQL  = 3,  ///< PostgreSQL 数据库 (QPSQL)
+    SQLite      = 4,  ///< SQLite 数据库 (QSQLITE)
+    DB2         = 5   ///< IBM DB2 数据库 (QDB2)
+};
+
+/**
+ * @brief 数据库错误码枚举
+ */
+enum class DBErrCode
+{
+    SUCCESS        = 0,  ///< 执行成功
+    DB_NOT_OPEN    = 1,  ///< 数据库未连接
+    SQL_SYNTAX_ERR = 2,  ///< SQL语法错误
+    EXECUTE_FAILED = 3,  ///< SQL执行异常
+    TRANS_ERR      = 4   ///< 事务执行异常
+};
+
+/**
+ * @brief 数据库连接配置结构体
+ */
+struct DBConfig
+{
+    DBDriverType driverType;      ///< 数据库驱动类型
+    QString      host;            ///< 数据库地址
+    quint16      port;            ///< 端口号
+    QString      dbName;          ///< 数据库名
+    QString      user;            ///< 登录用户名
+    QString      password;        ///< 登录密码
+
+    bool         enableRetry = false;     ///< 是否开启连接重试
+    int          retryTimes = 3;      ///< 最大重试次数
+    int          retryIntervalMs = 1000; ///< 重试间隔(毫秒)
+    bool         limitRetryCount = false; ///< 是否限制重试次数
+};
+
+#endif // DBCONFIG_H
