@@ -157,7 +157,7 @@ private:
 
 private:
     QQueue<TaskNode>      m_taskQueue;       ///< 任务队列（FIFO）
-    QQueue<DBTask>        m_batchBuffer;     ///< 批量入队缓冲区
+    QQueue<std::shared_ptr<DBTask>> m_batchBuffer;     ///< 批量入队缓冲区（共享指针，避免队列操作深拷贝）
     QDBConnection*        m_dbConn;          ///< 数据库连接实例
     DBTaskManagerConfig   m_config;          ///< 管理器配置
     QMutex                m_mutex;           ///< 队列操作互斥锁

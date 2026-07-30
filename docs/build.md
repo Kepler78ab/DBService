@@ -1,4 +1,4 @@
-# DBService v1.4.0 编译说明
+# DBService v1.4.1 编译说明
 
 ## 环境要求
 
@@ -72,11 +72,20 @@ include/
 
 ## 版本号
 
-当前版本：`v1.4.0`，可通过 `DBService::currentVersion()` 在运行时获取。
+当前版本：`v1.4.1`，可通过 `DBService::currentVersion()` 在运行时获取。
 
 ## 更新说明
 
-从 v1.3 升级到 v1.4 新增特性：
+从 v1.4 升级到 v1.4.1 新增特性：
+
+| 特性 | 说明 |
+|------|------|
+| BatchBuffer 共享指针 | 批量入队/出队路径 3 次深拷贝 → 1 次 |
+| pendingTasks std::move | 每次任务完成省一次 SqlTuple 列表拷贝 |
+| executeSqlUnit std::move | 每行数据少一次 QJsonObject 隐式共享 detach |
+| Release 消除日志开销 | `QT_NO_DEBUG_OUTPUT` / `QT_NO_WARNING_OUTPUT` 编译时消除格式化 |
+
+### v1.4.0 更新说明
 
 | 特性 | 说明 |
 |------|------|

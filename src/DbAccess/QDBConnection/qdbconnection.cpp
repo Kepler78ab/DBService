@@ -261,7 +261,7 @@ bool QDBConnection::executeSqlUnit(const SqlUnit& unit, QJsonArray& resultArray)
                         obj[fieldName] = value.toString();
                     }
                 }
-                resultArray.append(obj);
+                resultArray.append(std::move(obj));
             }
         }
         else

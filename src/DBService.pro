@@ -9,11 +9,16 @@ CONFIG += dll
 QT = core sql
 CONFIG += c++11
 
-# 版本号
+# 版本号（与 dbservice.cpp currentVersion() 保持一致）
 VERSION_MAJOR = 1
-VERSION_MINOR = 3
-VERSION_PATCH = 0
+VERSION_MINOR = 4
+VERSION_PATCH = 1
 DEFINES += DBSERVICE_VERSION=\"$$join(VERSION_MAJOR,.).$$VERSION_MINOR.$$VERSION_PATCH\"
+
+# Release 编译时消除调试日志开销
+CONFIG(release, debug|release) {
+    DEFINES += QT_NO_DEBUG_OUTPUT QT_NO_WARNING_OUTPUT
+}
 
 # 导出宏（控制 Q_DECL_EXPORT）
 DEFINES += DBSERVICE_LIBRARY

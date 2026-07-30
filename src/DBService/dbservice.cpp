@@ -60,7 +60,7 @@ DBService::~DBService()
 
 QString DBService::currentVersion()
 {
-    return QStringLiteral("v1.4.0");
+    return QStringLiteral("v1.4.1");
 }
 
 bool DBService::init(DBServiceType type, const DBConfig& dbConfig)
@@ -242,7 +242,7 @@ void DBService::onTaskManagerComplete(const DBTaskResult& result)
         QMutexLocker locker(&m_pendingMutex);
         auto it = m_pendingTasks.find(result.task.taskId);
         if (it != m_pendingTasks.end()) {
-            originalTupleList = it.value();
+            originalTupleList = std::move(it.value());
             m_pendingTasks.erase(it);
         }
     }

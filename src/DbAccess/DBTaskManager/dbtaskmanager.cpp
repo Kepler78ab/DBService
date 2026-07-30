@@ -87,9 +87,13 @@ bool DBTaskManager::pushTask(const DBTask& task)
                 flushBatchBuffer();
             }
 
-            // 将任务放入缓冲区
-            m_batchBuffer.enqueue(task);
-            qDebug() << "Task added to batch buffer:" << task.taskId 
+            // 将任务放入缓冲区（共享指针，零拷贝）
+            auto batchTask = std::make_shared<DBTask>(task);
+            if (batchTask->requestTime <= 0) {
+                batchTask->requestTime = QDateTime::currentMSecsSinceEpoch();
+            }
+            m_batchBuffer.enqueue(batchTask);
+            qDebug() << "Task added to batch buffer:" << batchTask->taskId 
                      << ", buffer size:" << m_batchBuffer.size();
 
             // 如果定时器未激活，启动批量入队定时器
@@ -187,26 +191,26 @@ void DBTaskManager::flushBatchBuffer()
         // 将缓冲区中的任务批量转移到任务队列
         while (!m_batchBuffer.isEmpty())
         {
-            DBTask task = m_batchBuffer.dequeue();
+            auto taskPtr = m_batchBuffer.dequeue();
 
             // 检查任务队列是否已满
             if (m_taskQueue.size() >= m_config.queueMaxSize)
             {
                 if (m_config.queueFullPolicy == QueueFullPolicy::REJECT)
                 {
-                    qWarning() << "Task queue is full, dropping task:" << task.taskId;
+                    qWarning() << "Task queue is full, dropping task:" << taskPtr->taskId;
                     continue;
                 }
                 else
                 {
-                    qWarning() << "Task queue is full, dropping task:" << task.taskId;
+                    qWarning() << "Task queue is full, dropping task:" << taskPtr->taskId;
                     continue;
                 }
             }
 
-            // 创建任务节点
+            // 创建任务节点（共享指针直接传递，零拷贝）
             TaskNode node;
-            node.task = std::make_shared<DBTask>(task);
+            node.task = taskPtr;
             if (node.task->requestTime <= 0) {
                 node.task->requestTime = QDateTime::currentMSecsSinceEpoch();
             }
