@@ -196,23 +196,12 @@ QString DBLogManager::buildJsonLine(const DBServiceResult& result) const
     }
     obj["sqlList"] = sqlArray;
 
-    QJsonObject dataObj;
-    for (auto it = result.data.constBegin(); it != result.data.constEnd(); ++it) {
-        const QVariant value = it.value();
-        if (value.canConvert<QVariantMap>()) {
-            dataObj[it.key()] = QJsonObject::fromVariantMap(value.toMap());
-        } else if (value.canConvert<QVector<QVariantMap>>()) {
-            QJsonArray rows;
-            const QVector<QVariantMap> rowMaps = qvariant_cast<QVector<QVariantMap>>(value);
-            for (const QVariantMap& rowMap : rowMaps) {
-                rows.append(QJsonObject::fromVariantMap(rowMap));
-            }
-            dataObj[it.key()] = rows;
-        } else {
-            dataObj[it.key()] = QJsonValue::fromVariant(value);
-        }
+    // 直接从 rawJson 读取，避免 data 往返转换
+    if (!result.rawJson.isEmpty()) {
+        obj["data"] = result.rawJson.object();
+    } else {
+        obj["data"] = QJsonObject();
     }
-    obj["data"] = dataObj;
 
     return QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact));
 }

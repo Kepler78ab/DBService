@@ -35,7 +35,7 @@ enum class TaskThreadModel
  * - Standard：有限重试，折中策略
  * - Unreliable：NoRetry，只执行一次
  *
- * @note 当前版本：v1.2.0
+ * @note 当前版本：v1.4.0
  */
 class DBSERVICE_EXPORT DBService : public QObject
 {
@@ -69,13 +69,28 @@ public:
     QString serviceName() const { return m_serviceName; }
     void setServiceName(const QString& name) { m_serviceName = name; }
 
+    /**
+     * @brief 将原始JSON结果转换为结构化数据
+     * @param rawJson 原始查询结果JSON
+     * @return 结构化数据，键为SqlUnit.tag，值为行数组(QVector<QVariantMap>)或修改结果(QVariantMap)
+     * 
+     * @note 默认 sigExecFinished 返回的 DBServiceResult.data 为空。
+     *       需要结构化数据时（如 UI 绑定），可调用此函数手动转换。
+     * @code
+     * connect(db, &DBService::sigExecFinished, this, [](const DBServiceResult& res) {
+     *     auto data = DBService::extractData(res.rawJson);
+     *     // data["users"] → QVector<QVariantMap>
+     * });
+     * @endcode
+     */
+    static QMap<QString, QVariant> extractData(const QJsonDocument& rawJson);
+
 public slots:
     void onExecSqlList(const QVector<SqlTuple>& sqlList);
     void onExecSqlList(const QVector<SqlTuple>& sqlList, const QString& taskId);
 
 signals:
     void sigExecFinished(const DBServiceResult& result);
-    void sigRawResult(const DBServiceRawResult& rawResult);
 
 private slots:
     void onTaskManagerComplete(const DBTaskResult& result);
@@ -84,7 +99,6 @@ private:
     DBTaskManagerConfig generateConfig(DBServiceType type, const DBConfig& dbConfig);
     bool init(const DBTaskManagerConfig& config);
     DBServiceResult convertResult(const DBTaskResult& taskResult, const QVector<SqlTuple>& originalTupleList);
-    static QMap<QString, QVariant> extractData(const DBTaskResult& result);
 
     DBServiceType m_serviceType;
     TaskThreadModel m_threadModel;

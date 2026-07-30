@@ -1,4 +1,4 @@
-# DBService v1.2 编译说明
+# DBService v1.4.0 编译说明
 
 ## 环境要求
 
@@ -9,7 +9,7 @@
 ## 目录结构
 
 ```
-DBService_v1.2/
+DBService/
 ├── src/                    ← 源码
 │   ├── DBService.pro
 │   ├── DBService/          ← DBService 模块
@@ -26,7 +26,7 @@ DBService_v1.2/
 
 ```bash
 # 进入源码目录
-cd DBService_v1.2/src
+cd DBService/src
 
 # 生成 Makefile
 qmake DBService.pro
@@ -72,20 +72,17 @@ include/
 
 ## 版本号
 
-当前版本：`v1.2.0`，可通过 `DBService::currentVersion()` 在运行时获取。
+当前版本：`v1.4.0`，可通过 `DBService::currentVersion()` 在运行时获取。
 
 ## 更新说明
 
-从 v1.1 升级到 v1.2 新增特性：
+从 v1.3 升级到 v1.4 新增特性：
 
 | 特性 | 说明 |
 |------|------|
-| 线程模式选择 | 新增 `TaskThreadModel` 枚举，构造函数增加 `model` 参数 |
-| MainThread（默认） | 旧行为，TaskManager 在主线程，零改动升级 |
-| WorkerThread | TaskManager 移入子线程，SQL 阻塞不卡 UI |
-| qRegisterMetaType | `DBTask`、`DBTaskResult`、`DBServiceRawResult` 已注册，跨线程信号正常工作 |
-| Debug/Release 分离 | 编译产物按模式分别输出，避免混合链接问题 |
-| 自定义 taskId | 新增 `onExecSqlList(sqlList, taskId)` 重载，用于请求追踪精确匹配 |
-| 原始 JSON 信号 | 新增 `sigRawResult(const DBServiceRawResult&)` 信号，直传 `QJsonObject` 零转换 |
-| DBServiceRawResult | 新增结构体，含 `taskId/QJsonObject/isSuccess/errCode/errMsg/errSql` |
-| Q_INVOKABLE | `DBTaskManager::start()` 和 `DBTaskManager::onPushTask()` 增加 `Q_INVOKABLE`，支持跨线程 invokeMethod |
+| 合并信号 | 移除 `sigRawResult`，统一由 `sigExecFinished` 承载，减少跨线程开销 |
+| rawJson 字段 | `DBServiceResult` 新增 `QJsonDocument rawJson`，零转换访问原始 JSON |
+| extractData 按需调用 | 改为 `public static`，默认不执行，需要时手动调用 |
+| toRawResult() | `DBServiceResult` 新增兼容方法，旧调用方一行迁移 |
+| DBServiceRawResult 补齐 | 新增 `serviceName`/`errTupleIndex`，`errCode` 改为 `DBErrCode` 类型 |
+| 内存优化 | TaskNode 共享指针、DBLogManager 直接读 rawJson |

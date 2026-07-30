@@ -14,7 +14,7 @@ DBService::DBService(TaskThreadModel model, QObject* parent)
 {
     qRegisterMetaType<DBTask>("DBTask");
     qRegisterMetaType<DBTaskResult>("DBTaskResult");
-    qRegisterMetaType<DBServiceRawResult>("DBServiceRawResult");
+    qRegisterMetaType<DBServiceResult>("DBServiceResult");
 }
 
 DBService::DBService(DBServiceType type, const DBConfig& dbConfig,
@@ -26,7 +26,7 @@ DBService::DBService(DBServiceType type, const DBConfig& dbConfig,
 {
     qRegisterMetaType<DBTask>("DBTask");
     qRegisterMetaType<DBTaskResult>("DBTaskResult");
-    qRegisterMetaType<DBServiceRawResult>("DBServiceRawResult");
+    qRegisterMetaType<DBServiceResult>("DBServiceResult");
     init(type, dbConfig);
 }
 
@@ -39,7 +39,7 @@ DBService::DBService(const QPair<DBConfig, DBServiceType>& simpleConfig,
 {
     qRegisterMetaType<DBTask>("DBTask");
     qRegisterMetaType<DBTaskResult>("DBTaskResult");
-    qRegisterMetaType<DBServiceRawResult>("DBServiceRawResult");
+    qRegisterMetaType<DBServiceResult>("DBServiceResult");
     init(simpleConfig);
 }
 
@@ -60,7 +60,7 @@ DBService::~DBService()
 
 QString DBService::currentVersion()
 {
-    return QStringLiteral("v1.3.0");
+    return QStringLiteral("v1.4.0");
 }
 
 bool DBService::init(DBServiceType type, const DBConfig& dbConfig)
@@ -90,16 +90,11 @@ bool DBService::init(const DBTaskManagerConfig& config)
         ? new DBTaskManager(nullptr)
         : new DBTaskManager(this);
 
-    // 无论 TaskManager init 成功与否，都必须先连接信号槽
-    // WorkerThread 模式下，Qt 自动使用 QueuedConnection 进行跨线程信号传递
     connect(m_taskManager, &DBTaskManager::sigTaskComplete,
             this, &DBService::onTaskManagerComplete);
 
     if (!m_taskManager->init(config)) {
         qCritical() << "DBService: TaskManager init failed";
-        // 注意：即使 init 失败，也不返回 false，而是继续执行
-        // 因为 m_taskManager 会在后台重试连接数据库
-        // 如果此时返回 false，Controller 可能会停止整个初始化流程
     }
 
     // WorkerThread 模式：将 TaskManager 移入子线程
@@ -107,7 +102,6 @@ bool DBService::init(const DBTaskManagerConfig& config)
         m_workerThread = new QThread(this);
         m_workerThread->setObjectName("DBService_Worker");
         m_taskManager->moveToThread(m_workerThread);
-        // 线程结束时自动清理 TaskManager
         connect(m_workerThread, &QThread::finished,
                 m_taskManager, &QObject::deleteLater);
         m_workerThread->start();
@@ -126,7 +120,6 @@ void DBService::start()
     if (!m_taskManager) return;
 
     if (m_threadModel == TaskThreadModel::WorkerThread) {
-        // 跨线程调用：TaskManager 在子线程中，确保 start() 在子线程执行
         QMetaObject::invokeMethod(m_taskManager, "start", Qt::QueuedConnection);
     } else {
         m_taskManager->start();
@@ -141,7 +134,6 @@ DBTaskManagerConfig DBService::generateConfig(DBServiceType type, const DBConfig
     switch (type)
     {
     case DBServiceType::Reliable:
-        // 可靠模式：ForeverRetry，保证执行
         config.retryMode = TaskRetryMode::ForeverRetry;
         config.retryIntervalMs = 3000;
         config.enableBatchEnqueue = false;
@@ -150,7 +142,6 @@ DBTaskManagerConfig DBService::generateConfig(DBServiceType type, const DBConfig
         break;
 
     case DBServiceType::HighPerf:
-        // 高性能模式：批量入队+短间隔
         config.retryMode = TaskRetryMode::LimitedRetry;
         config.maxRetryCount = 3;
         config.retryIntervalMs = 1000;
@@ -162,7 +153,6 @@ DBTaskManagerConfig DBService::generateConfig(DBServiceType type, const DBConfig
         break;
 
     case DBServiceType::Standard:
-        // 标准模式：使用默认配置
         config.retryMode = TaskRetryMode::LimitedRetry;
         config.maxRetryCount = 3;
         config.retryIntervalMs = 3000;
@@ -174,7 +164,6 @@ DBTaskManagerConfig DBService::generateConfig(DBServiceType type, const DBConfig
         break;
 
     case DBServiceType::Unreliable:
-        // 不可靠模式：NoRetry，只执行一次
         config.retryMode = TaskRetryMode::NoRetry;
         config.maxRetryCount = 0;
         config.retryIntervalMs = 0;
@@ -194,22 +183,18 @@ void DBService::onExecSqlList(const QVector<SqlTuple>& sqlList)
         return;
     }
 
-    // 创建DBTask
     DBTask task = DBTask::spawnRandomQUuidTask();
 
-    // 将SqlTuple转换为SqlUnit
     for (const SqlTuple& tuple : sqlList) {
         SqlUnit unit = SqlUnit::createSqlUnit(tuple.tag, tuple.sql, tuple.isModify);
         task.append(unit);
     }
 
-    // 保存原始SqlTuple列表，用于后续转换结果（线程安全）
     {
         QMutexLocker locker(&m_pendingMutex);
         m_pendingTasks[task.taskId] = sqlList;
     }
 
-    // 投递任务（WorkerThread 模式下跨线程调用）
     if (m_threadModel == TaskThreadModel::WorkerThread) {
         QMetaObject::invokeMethod(m_taskManager, "onPushTask",
                                   Qt::QueuedConnection,
@@ -226,24 +211,20 @@ void DBService::onExecSqlList(const QVector<SqlTuple>& sqlList, const QString& t
         return;
     }
 
-    // 使用调用方指定的 taskId（如 IPC requestId），不做随机生成
     DBTask task;
     task.taskId = taskId;
     task.requestTime = QDateTime::currentMSecsSinceEpoch();
 
-    // 将SqlTuple转换为SqlUnit
     for (const SqlTuple& tuple : sqlList) {
         SqlUnit unit = SqlUnit::createSqlUnit(tuple.tag, tuple.sql, tuple.isModify);
         task.append(unit);
     }
 
-    // 保存原始SqlTuple列表，用于后续转换结果（线程安全）
     {
         QMutexLocker locker(&m_pendingMutex);
         m_pendingTasks[task.taskId] = sqlList;
     }
 
-    // 投递任务（WorkerThread 模式下跨线程调用）
     if (m_threadModel == TaskThreadModel::WorkerThread) {
         QMetaObject::invokeMethod(m_taskManager, "onPushTask",
                                   Qt::QueuedConnection,
@@ -255,10 +236,6 @@ void DBService::onExecSqlList(const QVector<SqlTuple>& sqlList, const QString& t
 
 void DBService::onTaskManagerComplete(const DBTaskResult& result)
 {
-    // onTaskManagerComplete 总是在主线程执行：
-    // - MainThread 模式：直接在主线程调用
-    // - WorkerThread 模式：子线程 sigTaskComplete 自动 QueuedConnection 到主线程
-    
     // 线程安全地查找并移除对应的原始SqlTuple列表
     QVector<SqlTuple> originalTupleList;
     {
@@ -270,52 +247,41 @@ void DBService::onTaskManagerComplete(const DBTaskResult& result)
         }
     }
 
-    // 转换结果
+    // 转换结果（只传 rawJson，不调用 extractData）
     DBServiceResult serviceResult = convertResult(result, originalTupleList);
 
-    // 发送信号（主线程内同步，无需额外处理）
+    // 唯一的信号发射
     emit sigExecFinished(serviceResult);
-
-    // 发射原始JSON信号（直传QJsonObject，零转换）
-    DBServiceRawResult rawResult;
-    rawResult.taskId     = result.task.taskId;
-    rawResult.resultJson = result.resultJson.object();
-    rawResult.isSuccess  = result.isSuccess;
-    rawResult.errCode    = static_cast<int>(result.errCode);
-    rawResult.errMsg     = result.errMsg;
-    rawResult.errSql     = result.errSql;
-    emit sigRawResult(rawResult);
 }
 
 DBServiceResult DBService::convertResult(const DBTaskResult& taskResult, const QVector<SqlTuple>& originalTupleList)
 {
     DBServiceResult result;
-    result.serviceName=m_serviceName;
-    result.isSuccess = taskResult.isSuccess;
-    result.taskId = taskResult.task.taskId;
-    result.sqlList = originalTupleList;
-    result.errCode = taskResult.errCode;
-    result.errMsg = taskResult.errMsg;
-    result.errSql = taskResult.errSql;
+    result.serviceName   = m_serviceName;
+    result.isSuccess     = taskResult.isSuccess;
+    result.taskId        = taskResult.task.taskId;
+    result.sqlList       = originalTupleList;
+    result.errCode       = taskResult.errCode;
+    result.errMsg        = taskResult.errMsg;
+    result.errSql        = taskResult.errSql;
     result.errTupleIndex = taskResult.errUnitIndex;
 
-    // 提取数据
-    if (taskResult.isSuccess) {
-        result.data = extractData(taskResult);
-    }
+    // 直接传递原始 JSON，零转换
+    // data 字段保持为空，调用方可按需调用 DBService::extractData(rawJson)
+    result.rawJson = taskResult.resultJson;
 
     return result;
 }
 
-QMap<QString, QVariant> DBService::extractData(const DBTaskResult& result)
+QMap<QString, QVariant> DBService::extractData(const QJsonDocument& rawJson)
 {
     QMap<QString, QVariant> data;
 
-    if (!result.isSuccess) {
+    if (rawJson.isEmpty()) {
         return data;
     }
 
-    QJsonObject rootObj = result.resultJson.object();
+    QJsonObject rootObj = rawJson.object();
     QStringList keys = rootObj.keys();
 
     for (const QString& key : keys) {
@@ -368,7 +334,6 @@ QPair<DBConfig, DBServiceType> DBService::loadSimpleConfig(const QString& filePa
     DBConfig dbConfig;
     settings.beginGroup("Database");
 
-    // 解析driverType
     QString driverStr = settings.value("driverType", "MySQL").toString();
     if (driverStr == "MySQL") dbConfig.driverType = DBDriverType::MySQL;
     else if (driverStr == "Oracle") dbConfig.driverType = DBDriverType::Oracle;
@@ -389,7 +354,6 @@ QPair<DBConfig, DBServiceType> DBService::loadSimpleConfig(const QString& filePa
     dbConfig.limitRetryCount = settings.value("limitRetryCount", true).toBool();
     settings.endGroup();
 
-    // 解析serviceType
     DBServiceType serviceType = DBServiceType::Reliable;
     settings.beginGroup("Service");
     QString typeStr = settings.value("serviceType", "Reliable").toString();

@@ -119,9 +119,9 @@ bool DBTaskManager::pushTask(const DBTask& task)
 
         // 创建任务节点，初始化错误信息字段
         TaskNode node;
-        node.task = task;
-        if (node.task.requestTime <= 0) {
-            node.task.requestTime = QDateTime::currentMSecsSinceEpoch();
+        node.task = std::make_shared<DBTask>(task);
+        if (node.task->requestTime <= 0) {
+            node.task->requestTime = QDateTime::currentMSecsSinceEpoch();
         }
         node.currentRetry = 0;
         node.lastErrMsg.clear();
@@ -206,9 +206,9 @@ void DBTaskManager::flushBatchBuffer()
 
             // 创建任务节点
             TaskNode node;
-            node.task = task;
-            if (node.task.requestTime <= 0) {
-                node.task.requestTime = QDateTime::currentMSecsSinceEpoch();
+            node.task = std::make_shared<DBTask>(task);
+            if (node.task->requestTime <= 0) {
+                node.task->requestTime = QDateTime::currentMSecsSinceEpoch();
             }
             node.currentRetry = 0;
             node.lastErrMsg.clear();
@@ -315,7 +315,7 @@ void DBTaskManager::processTask(const TaskNode& node)
         DBTaskResult result;
 
         // 调用下层数据库连接执行任务
-        m_dbConn->execTask(node.task, result);
+        m_dbConn->execTask(*node.task, result);
 
         if (!result.isSuccess)
         {
@@ -334,7 +334,7 @@ void DBTaskManager::processTask(const TaskNode& node)
             }
 
             if (isPermanent) {
-                qWarning() << "Task" << node.task.taskId
+                qWarning() << "Task" << node.task->taskId
                            << "encountered permanent error at index" << result.errUnitIndex
                            << ", skipping retry. Error:" << result.errMsg;
 
@@ -359,7 +359,7 @@ void DBTaskManager::processTask(const TaskNode& node)
             retryNode.lastErrIndex = result.errUnitIndex;
             retryNode.lastErrCode = result.errCode;
 
-            qDebug() << "Task" << node.task.taskId << "failed at SqlUnit index"
+            qDebug() << "Task" << node.task->taskId << "failed at SqlUnit index"
                      << result.errUnitIndex << ", error:" << result.errMsg;
 
             scheduleRetry(retryNode);
@@ -381,7 +381,7 @@ void DBTaskManager::processTask(const TaskNode& node)
         
         DBTaskResult result;
         result.reset();
-        result.task = node.task;
+        result.task = *node.task;
         result.isSuccess = false;
         result.errCode = DBErrCode::EXECUTE_FAILED;
         result.errMsg = QString("Exception in processTask: ") + e.what();
@@ -398,7 +398,7 @@ void DBTaskManager::processTask(const TaskNode& node)
         
         DBTaskResult result;
         result.reset();
-        result.task = node.task;
+        result.task = *node.task;
         result.isSuccess = false;
         result.errCode = DBErrCode::EXECUTE_FAILED;
         result.errMsg = "Unknown exception in processTask";
@@ -419,17 +419,17 @@ void DBTaskManager::scheduleRetry(const TaskNode& node)
         if (m_config.retryMode == TaskRetryMode::ForeverRetry)
         {
             const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-            if (retryNode.task.requestTime <= 0) {
-                retryNode.task.requestTime = nowMs;
+            if (retryNode.task->requestTime <= 0) {
+                retryNode.task->requestTime = nowMs;
             }
-            const qint64 elapsedMs = nowMs - retryNode.task.requestTime;
+            const qint64 elapsedMs = nowMs - retryNode.task->requestTime;
             if (elapsedMs >= g_reliableMaxRetryDurationMs)
             {
                 m_isProcessing = false;
 
                 DBTaskResult result;
                 result.reset();
-                result.task = node.task;
+                result.task = *node.task;
                 result.isSuccess = false;
                 result.errCode = node.lastErrCode;
                 result.errMsg = QString("Reliable retry timeout after %1 ms: %2")
@@ -438,7 +438,7 @@ void DBTaskManager::scheduleRetry(const TaskNode& node)
                 result.errUnitIndex = node.lastErrIndex;
                 result.resultJson = QJsonDocument();
 
-                qWarning() << "Task" << node.task.taskId
+                qWarning() << "Task" << node.task->taskId
                            << "reliable retry timeout after" << elapsedMs
                            << "ms, dropping current task and scheduling next.";
 
@@ -477,7 +477,7 @@ void DBTaskManager::scheduleRetry(const TaskNode& node)
             // 需要重试，使用定时器延时
             m_currentTask = retryNode;
             qDebug() << "Scheduling retry" << retryNode.currentRetry << "for task:"
-                     << node.task.taskId << ", last failed at index:" << node.lastErrIndex;
+                     << node.task->taskId << ", last failed at index:" << node.lastErrIndex;
             m_retryTimer->start(m_config.retryIntervalMs);
         }
         else
@@ -487,7 +487,7 @@ void DBTaskManager::scheduleRetry(const TaskNode& node)
 
             DBTaskResult result;
             result.reset();
-            result.task = node.task;
+            result.task = *node.task;
             result.isSuccess = false;
             // 使用最后一次失败的错误信息
             result.errCode = node.lastErrCode;
@@ -497,7 +497,7 @@ void DBTaskManager::scheduleRetry(const TaskNode& node)
             result.errUnitIndex = node.lastErrIndex;
             result.resultJson = QJsonDocument();
 
-            qDebug() << "Task" << node.task.taskId << "final failure after"
+            qDebug() << "Task" << node.task->taskId << "final failure after"
                      << node.currentRetry << "retries, failed at index:" << node.lastErrIndex;
 
             emit sigTaskComplete(result);

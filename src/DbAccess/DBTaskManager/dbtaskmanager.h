@@ -5,6 +5,7 @@
 #include <QQueue>
 #include <QTimer>
 #include <QMutex>
+#include <memory>
 #include "../DbAccessStruct/dbstructs.h"
 
 extern int g_reliableMaxRetryDurationMs;
@@ -55,7 +56,7 @@ struct DBTaskManagerConfig
  */
 struct TaskNode
 {
-    DBTask    task;          ///< 原始事务任务
+    std::shared_ptr<DBTask> task;  ///< 原始事务任务（共享指针，避免队列操作反复深拷贝）
     int       currentRetry;  ///< 当前已重试次数，默认值为0
     QString   lastErrMsg;    ///< 上次失败的错误信息
     QString   lastErrSql;    ///< 上次失败的SQL语句

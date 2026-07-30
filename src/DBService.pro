@@ -34,7 +34,7 @@ include($$PWD/DBService/DBService.pri)
 
 # 编译输出目录
 CONFIG(debug, debug|release) {
-    DESTDIR = $$PWD/../build/debug
+    DESTDIR = $$PWD/../lib/debug
 } else {
-    DESTDIR = $$PWD/../build/release
+    DESTDIR = $$PWD/../lib/release
 }
