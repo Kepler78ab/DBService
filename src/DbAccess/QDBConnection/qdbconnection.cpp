@@ -210,7 +210,7 @@ void QDBConnection::closeConnection()
     }
 }
 
-bool QDBConnection::executeSqlUnit(const SqlUnit& unit, QJsonArray& resultArray)
+bool QDBConnection::executeSqlUnit(const SqlUnit& unit, QJsonObject& resultObject)
 {
     try {
         QSqlQuery query(m_db);
@@ -229,67 +229,77 @@ bool QDBConnection::executeSqlUnit(const SqlUnit& unit, QJsonArray& resultArray)
         {
             // 非修改型语句：获取查询结果
             QSqlRecord record = query.record();
+            // 列名在循环外预提取一次，避免每行每列重复构造/查找（大数据量下显著省 CPU）
+            QStringList fieldNames;
+            for (int i = 0; i < record.count(); ++i)
+            {
+                fieldNames << record.fieldName(i);
+            }
+
+            // 紧凑格式：每行为纯值 QJsonArray（无键名、无哈希节点）
+            QJsonArray rows;
             while (query.next())
             {
-                QJsonObject obj;
+                QJsonArray row;
                 for (int i = 0; i < record.count(); ++i)
                 {
-                    QString fieldName = record.fieldName(i);
                     QVariant value = query.value(i);
 
                     if (value.isNull())
                     {
-                        obj[fieldName] = QJsonValue::Null;
+                        row.append(QJsonValue::Null);
                     }
                     else if (value.type() == QVariant::Int)
                     {
-                        obj[fieldName] = value.toInt();
+                        row.append(value.toInt());
                     }
                     else if (value.type() == QVariant::LongLong)
                     {
-                        obj[fieldName] = value.toLongLong();
+                        row.append(value.toLongLong());
                     }
                     else if (value.type() == QVariant::Double)
                     {
-                        obj[fieldName] = value.toDouble();
+                        row.append(value.toDouble());
                     }
                     else if (value.type() == QVariant::Bool)
                     {
-                        obj[fieldName] = value.toBool();
+                        row.append(value.toBool());
                     }
                     else
                     {
-                        obj[fieldName] = value.toString();
+                        row.append(value.toString());
                     }
                 }
-                resultArray.append(std::move(obj));
+                rows.append(row);
             }
+
+            resultObject["type"] = QStringLiteral("query");
+            resultObject["columns"] = QJsonArray::fromStringList(fieldNames);
+            resultObject["rows"] = rows;
         }
         else
         {
             // 修改型语句：返回影响行数和最后插入ID
-            QJsonObject resultObj;
-            resultObj["affectedRows"] = query.numRowsAffected();
-            
+            resultObject["type"] = QStringLiteral("write");
+            resultObject["affectedRows"] = query.numRowsAffected();
+
             // 获取最后插入的ID（适用于INSERT语句）
             QVariant lastInsertId = query.lastInsertId();
             if (lastInsertId.isValid())
             {
                 if (lastInsertId.type() == QVariant::Int)
                 {
-                    resultObj["lastInsertId"] = lastInsertId.toInt();
+                    resultObject["lastInsertId"] = lastInsertId.toInt();
                 }
                 else if (lastInsertId.type() == QVariant::LongLong)
                 {
-                    resultObj["lastInsertId"] = lastInsertId.toLongLong();
+                    resultObject["lastInsertId"] = lastInsertId.toLongLong();
                 }
                 else
                 {
-                    resultObj["lastInsertId"] = lastInsertId.toString();
+                    resultObject["lastInsertId"] = lastInsertId.toString();
                 }
             }
-            
-            resultArray.append(resultObj);
         }
 
         query.finish();
@@ -369,9 +379,9 @@ void QDBConnection::execTask(const DBTask& task, DBTaskResult& outResult)
         for (int i = 0; i < task.sqlList.size(); ++i)
         {
             const SqlUnit& unit = task.sqlList[i];
-            QJsonArray resultArray;
+            QJsonObject resultObject;
 
-            if (!executeSqlUnit(unit, resultArray))
+            if (!executeSqlUnit(unit, resultObject))
             {
                 // SQL执行失败，立即回滚事务
                 if (m_db.isOpen())
@@ -389,10 +399,17 @@ void QDBConnection::execTask(const DBTask& task, DBTaskResult& outResult)
                 return;
             }
 
-            if (!resultArray.isEmpty()) {
-                resultObj[unit.jsonKey] = resultArray;
+            // 紧凑格式：总是放入（空结果保留列头，写操作保留 affectedRows）
+            resultObj[unit.jsonKey] = resultObject;
+            // 行数统计（日志用）：查询计 rows 长度，写计 affectedRows
+            if (resultObject.value(QStringLiteral("type")).toString() == QStringLiteral("query"))
+            {
+                totalRows += resultObject.value(QStringLiteral("rows")).toArray().size();
             }
-            totalRows += resultArray.size();
+            else
+            {
+                totalRows += static_cast<qint64>(resultObject.value(QStringLiteral("affectedRows")).toDouble());
+            }
         }
 
         // 全部SQL执行成功，提交事务

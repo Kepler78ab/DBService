@@ -35,7 +35,7 @@ enum class TaskThreadModel
  * - Standard：有限重试，折中策略
  * - Unreliable：NoRetry，只执行一次
  *
- * @note 当前版本：v1.4.0
+ * @note 当前版本：v1.5.1
  */
 class DBSERVICE_EXPORT DBService : public QObject
 {
@@ -70,11 +70,41 @@ public:
     void setServiceName(const QString& name) { m_serviceName = name; }
 
     /**
-     * @brief 将原始JSON结果转换为结构化数据
-     * @param rawJson 任务的原始查询结果JSON
-     * @return 结构化数据，键为SqlUnit.tag，值为行数组(QVector<QVariantMap>)或修改结果(QVariantMap)
+     * @brief 当前排队中的任务数（已提交尚未回调的任务数）
+     * @note 线程安全；供 DBServicePool 负载均衡选实例使用
+     */
+    int pendingCount() const;
+
+    /**
+     * @brief 将紧凑格式原始JSON转换为结构化数据
+     * @param rawJson 任务的原始查询结果JSON（v1.5.0 紧凑格式）
+     * @return 结构化数据，键为 SqlUnit.tag：
+     *         - 查询 tag → QVariantMap{ "columns": QStringList, "rows": QJsonArray }
+     *         - 写   tag → QVariantMap{ "affectedRows": qint64[, "lastInsertId": qint64] }
      */
     static QMap<QString, QVariant> extractData(const QJsonDocument& rawJson);
+
+    /**
+     * @brief 零转换提取查询结果（按 tag 定位紧凑格式中的 type=query 节点）
+     * @param rawJson  任务的原始查询结果JSON
+     * @param tag      SqlUnit 的 jsonKey/tag
+     * @param columns  输出列名（可传 nullptr 跳过）
+     * @param rows     输出行数组（可传 nullptr 跳过；赋值共享，不深拷贝）
+     * @return tag 存在且为 query 类型时返回 true
+     */
+    static bool extractColumnsAndRows(const QJsonDocument& rawJson, const QString& tag,
+                                      QStringList* columns, QJsonArray* rows);
+
+    /**
+     * @brief 提取写操作结果（按 tag 定位紧凑格式中的 type=write 节点）
+     * @param rawJson       任务的原始查询结果JSON
+     * @param tag           SqlUnit 的 jsonKey/tag
+     * @param affectedRows  输出影响行数（可传 nullptr 跳过）
+     * @param lastInsertId  输出最后插入ID（无该字段时为 -1；可传 nullptr 跳过）
+     * @return tag 存在且为 write 类型时返回 true
+     */
+    static bool extractWriteResult(const QJsonDocument& rawJson, const QString& tag,
+                                   qint64* affectedRows, qint64* lastInsertId);
 
 public slots:
     void onExecSqlList(const QVector<SqlTuple>& sqlList);
@@ -95,7 +125,7 @@ private:
     TaskThreadModel m_threadModel;
     DBTaskManager* m_taskManager = nullptr;
     QThread* m_workerThread = nullptr;
-    QMutex m_pendingMutex;
+    mutable QMutex m_pendingMutex;
     QMap<QString, QVector<SqlTuple>> m_pendingTasks;
     QString m_serviceName;
 };

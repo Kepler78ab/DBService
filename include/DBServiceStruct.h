@@ -47,7 +47,7 @@ struct DBServiceRawResult
 {
     QString         taskId;        ///< 任务追踪ID
     QString         serviceName;   ///< 服务名称
-    QJsonDocument   resultJson;    ///< 原始查询结果JSON（零转换）
+    QJsonDocument   resultJson;    ///< 原始结果JSON（v1.5.0 紧凑格式，零转换）
     bool            isSuccess;     ///< 执行是否成功
     DBErrCode       errCode;       ///< 错误码
     QString         errMsg;        ///< 错误描述
@@ -67,6 +67,10 @@ struct DBServiceRawResult
  *       data 字段默认为空，需要结构化数据时请调用 DBService::extractData(rawJson)
  *       使用 toRawResult() 可获取轻量版 DBServiceRawResult 用于兼容旧调用方
  * @note 字段按 8 字节成员在前、小字段集中尾部排列，减少 padding
+ * @note rawJson 为 v1.5.0 紧凑格式，键为 SqlUnit.tag：
+ *       - 查询: {"type":"query", "columns":[...], "rows":[[...]]}
+ *       - 写:   {"type":"write", "affectedRows":n[, "lastInsertId":x]}
+ *       解析建议用 DBService::extractData / extractColumnsAndRows / extractWriteResult
  */
 struct DBServiceResult
 {

@@ -61,10 +61,12 @@ private:
     /**
      * @brief 执行单条SQL单元
      * @param unit SQL单元
-     * @param resultArray 查询结果数组（仅查询语句有效）
+     * @param resultObject 输出紧凑结果对象：
+     *        - 查询: {"type":"query", "columns":[...], "rows":[[...]]}
+     *        - 写:   {"type":"write", "affectedRows":n[, "lastInsertId":x]}
      * @return 执行成功返回true，失败返回false
      */
-    bool executeSqlUnit(const SqlUnit& unit, QJsonArray& resultArray);
+    bool executeSqlUnit(const SqlUnit& unit, QJsonObject& resultObject);
 
 private:
     DBConfig        m_config;          ///< 数据库连接配置

@@ -11,7 +11,7 @@ CONFIG += c++11
 
 # 版本号（与 dbservice.cpp currentVersion() 保持一致）
 VERSION_MAJOR = 1
-VERSION_MINOR = 4
+VERSION_MINOR = 5
 VERSION_PATCH = 1
 DEFINES += DBSERVICE_VERSION=\"$$join(VERSION_MAJOR,.).$$VERSION_MINOR.$$VERSION_PATCH\"
 
@@ -36,6 +36,7 @@ INCLUDEPATH += $$PWD/../include
 
 # 引用内部源码模块
 include($$PWD/DBService/DBService.pri)
+include($$PWD/DBServicePool/DBServicePool.pri)
 
 # 编译输出目录
 CONFIG(debug, debug|release) {

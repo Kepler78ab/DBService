@@ -46,7 +46,7 @@ struct DBServiceRawResult
 {
     QString         taskId;
     QString         serviceName;
-    QJsonDocument   resultJson;
+    QJsonDocument   resultJson;   ///< 原始结果JSON（v1.5.0 紧凑格式，零转换）
     bool            isSuccess;
     DBErrCode       errCode;
     QString         errMsg;
@@ -63,6 +63,10 @@ struct DBServiceRawResult
 /**
  * @brief DBService返回结果结构体（完整版）
  * @note 字段按 8 字节成员在前、小字段集中尾部排列，减少 padding
+ * @note rawJson 为 v1.5.0 紧凑格式，键为 SqlUnit.tag：
+ *       - 查询: {"type":"query", "columns":[...], "rows":[[...]]}
+ *       - 写:   {"type":"write", "affectedRows":n[, "lastInsertId":x]}
+ *       解析建议用 DBService::extractData / extractColumnsAndRows / extractWriteResult
  */
 struct DBServiceResult
 {
@@ -73,8 +77,8 @@ struct DBServiceResult
     QString errMsg;
     QString errSql;
 
-    QJsonDocument rawJson;
-    QMap<QString, QVariant> data;
+    QJsonDocument rawJson;                         ///< 原始结果JSON（v1.5.0 紧凑格式，零转换）
+    QMap<QString, QVariant> data;                  ///< 结构化数据（默认空，按需调用 extractData）
 
     DBErrCode errCode;
     int errTupleIndex;

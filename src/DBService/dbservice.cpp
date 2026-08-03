@@ -63,7 +63,7 @@ DBService::~DBService()
 
 QString DBService::currentVersion()
 {
-    return QStringLiteral("v1.4.1");
+    return QStringLiteral("v1.5.1");
 }
 
 bool DBService::init(DBServiceType type, const DBConfig& dbConfig)
@@ -107,7 +107,7 @@ bool DBService::init(const DBTaskManagerConfig& config)
         m_taskManager->moveToThread(m_workerThread);
         connect(m_workerThread, &QThread::finished,
                 m_taskManager, &QObject::deleteLater);
-        m_workerThread->start();
+        m_workerThread->start(QThread::LowPriority);   // 低优先级：大查询解析不抢占主线程/其他进程 CPU
     }
 
     return true;
@@ -127,6 +127,12 @@ void DBService::start()
     } else {
         m_taskManager->start();
     }
+}
+
+int DBService::pendingCount() const
+{
+    QMutexLocker locker(&m_pendingMutex);
+    return m_pendingTasks.size();
 }
 
 DBTaskManagerConfig DBService::generateConfig(DBServiceType type, const DBConfig& dbConfig)
@@ -290,7 +296,7 @@ DBServiceResult DBService::convertResult(const DBTaskResult& taskResult, const Q
     return result;
 }
 
-// 统计结果JSON中的总行数（所有 jsonKey 数组长度之和），用于日志打点
+// 统计结果JSON中的总行数（紧凑格式：所有 type=query 的 rows 长度之和），用于日志打点
 static qint64 countResultRows(const QJsonDocument& doc)
 {
     if (doc.isEmpty() || !doc.isObject()) {
@@ -299,8 +305,9 @@ static qint64 countResultRows(const QJsonDocument& doc)
     qint64 rows = 0;
     const QJsonObject rootObj = doc.object();
     for (QJsonObject::const_iterator it = rootObj.begin(); it != rootObj.end(); ++it) {
-        if (it.value().isArray()) {
-            rows += it.value().toArray().size();
+        const QJsonObject meta = it.value().toObject();
+        if (meta.value(QStringLiteral("type")).toString() == QStringLiteral("query")) {
+            rows += meta.value(QStringLiteral("rows")).toArray().size();
         }
     }
     return rows;
@@ -314,50 +321,87 @@ QMap<QString, QVariant> DBService::extractData(const QJsonDocument& rawJson)
         return data;
     }
 
-    QJsonObject rootObj = rawJson.object();
-    QStringList keys = rootObj.keys();
+    const QJsonObject rootObj = rawJson.object();
+    const QStringList keys = rootObj.keys();
 
     for (const QString& key : keys) {
-        QJsonValue value = rootObj[key];
+        const QJsonObject meta = rootObj.value(key).toObject();
+        const QString type = meta.value(QStringLiteral("type")).toString();
 
-        if (value.isArray()) {
-            QJsonArray array = value.toArray();
-
-            // 判断是查询结果还是修改结果
-            if (!array.isEmpty()) {
-                QJsonObject firstObj = array[0].toObject();
-
-                // 如果包含affectedRows，说明是修改操作
-                if (firstObj.contains("affectedRows")) {
-                    QVariantMap modifyResult;
-                    modifyResult["affectedRows"] = firstObj["affectedRows"].toInt();
-                    if (firstObj.contains("lastInsertId")) {
-                        modifyResult["lastInsertId"] = firstObj["lastInsertId"].toInt();
-                    }
-                    data[key] = modifyResult;
-                }
-                else {
-                    // 查询操作：转换为QVector<QVariantMap>
-                    QVector<QVariantMap> rows;
-                    for (const QJsonValue& item : array) {
-                        QJsonObject obj = item.toObject();
-                        QVariantMap row;
-                        for (const QString& field : obj.keys()) {
-                            row[field] = obj[field].toVariant();
-                        }
-                        rows.append(row);
-                    }
-                    data[key] = QVariant::fromValue(rows);
-                }
+        if (type == QStringLiteral("query")) {
+            // 查询结果：{ "columns": [...], "rows": [[...]] } 紧凑结构
+            QVariantMap vm;
+            QStringList columns;
+            const QJsonArray colsArr = meta.value(QStringLiteral("columns")).toArray();
+            for (const QJsonValue& c : colsArr) {
+                columns << c.toString();
             }
-            else {
-                // 空数组
-                data[key] = QVariant::fromValue(QVector<QVariantMap>());
+            vm["columns"] = columns;
+            vm["rows"] = meta.value(QStringLiteral("rows")).toArray();
+            data[key] = vm;
+        }
+        else if (type == QStringLiteral("write")) {
+            // 写结果：{ "affectedRows": n[, "lastInsertId": x] }
+            QVariantMap vm;
+            vm["affectedRows"] = static_cast<qint64>(meta.value(QStringLiteral("affectedRows")).toDouble());
+            if (meta.contains(QStringLiteral("lastInsertId"))) {
+                vm["lastInsertId"] = static_cast<qint64>(meta.value(QStringLiteral("lastInsertId")).toDouble());
             }
+            data[key] = vm;
         }
     }
 
     return data;
+}
+
+bool DBService::extractColumnsAndRows(const QJsonDocument& rawJson, const QString& tag,
+                                      QStringList* columns, QJsonArray* rows)
+{
+    if (rawJson.isEmpty() || !rawJson.isObject()) {
+        return false;
+    }
+    const QJsonObject rootObj = rawJson.object();
+    if (!rootObj.contains(tag)) {
+        return false;
+    }
+    const QJsonObject meta = rootObj.value(tag).toObject();
+    if (meta.value(QStringLiteral("type")).toString() != QStringLiteral("query")) {
+        return false;
+    }
+    if (columns) {
+        columns->clear();
+        const QJsonArray colsArr = meta.value(QStringLiteral("columns")).toArray();
+        for (const QJsonValue& c : colsArr) {
+            columns->append(c.toString());
+        }
+    }
+    if (rows) {
+        *rows = meta.value(QStringLiteral("rows")).toArray();
+    }
+    return true;
+}
+
+bool DBService::extractWriteResult(const QJsonDocument& rawJson, const QString& tag,
+                                   qint64* affectedRows, qint64* lastInsertId)
+{
+    if (rawJson.isEmpty() || !rawJson.isObject()) {
+        return false;
+    }
+    const QJsonObject rootObj = rawJson.object();
+    if (!rootObj.contains(tag)) {
+        return false;
+    }
+    const QJsonObject meta = rootObj.value(tag).toObject();
+    if (meta.value(QStringLiteral("type")).toString() != QStringLiteral("write")) {
+        return false;
+    }
+    if (affectedRows) {
+        *affectedRows = static_cast<qint64>(meta.value(QStringLiteral("affectedRows")).toDouble());
+    }
+    if (lastInsertId) {
+        *lastInsertId = static_cast<qint64>(meta.value(QStringLiteral("lastInsertId")).toDouble(-1.0));
+    }
+    return true;
 }
 
 QPair<DBConfig, DBServiceType> DBService::loadSimpleConfig(const QString& filePath)
