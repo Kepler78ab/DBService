@@ -136,7 +136,8 @@ bool DBTaskManager::pushTask(const DBTask& task)
         // FIFO: 新任务追加到队尾
         m_taskQueue.enqueue(node);
 
-        qDebug() << "Task pushed to queue:" << task.taskId << ", queue size:" << m_taskQueue.size();
+        qInfo() << "[DBTaskManager] 任务入队 taskId=" << task.taskId
+                << "queueDepth=" << m_taskQueue.size();
 
         // 如果当前没有任务在处理，启动调度
         if (!m_isProcessing)

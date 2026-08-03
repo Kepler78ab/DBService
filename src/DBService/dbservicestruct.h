@@ -4,6 +4,7 @@
 #include <QString>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QVariant>
 #include <QVariantMap>
 #include <QMap>
@@ -61,29 +62,31 @@ struct DBServiceRawResult
 
 /**
  * @brief DBService返回结果结构体（完整版）
+ * @note 字段按 8 字节成员在前、小字段集中尾部排列，减少 padding
  */
 struct DBServiceResult
 {
-    bool isSuccess;
     QString serviceName;
     QString taskId;
     QVector<SqlTuple> sqlList;
 
-    DBErrCode errCode;
     QString errMsg;
     QString errSql;
-    int errTupleIndex;
 
     QJsonDocument rawJson;
     QMap<QString, QVariant> data;
 
+    DBErrCode errCode;
+    int errTupleIndex;
+    bool isSuccess;
+
     DBServiceResult()
-        : isSuccess(false)
+        : errCode(DBErrCode::SUCCESS)
+        , errTupleIndex(-1)
+        , isSuccess(false)
         , taskId("")
-        , errCode(DBErrCode::SUCCESS)
         , errMsg("")
         , errSql("")
-        , errTupleIndex(-1)
         , data()
     {}
 

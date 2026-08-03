@@ -8,6 +8,7 @@
 #include <QVariant>
 #include <QDebug>
 #include <QException>
+#include <QElapsedTimer>
 
 QDBConnection::QDBConnection(QObject *parent)
     : QObject(parent)
@@ -305,8 +306,14 @@ bool QDBConnection::executeSqlUnit(const SqlUnit& unit, QJsonArray& resultArray)
 void QDBConnection::execTask(const DBTask& task, DBTaskResult& outResult)
 {
     try {
+        QElapsedTimer taskTimer;
+        taskTimer.start();
+
         outResult.reset();
         outResult.task = task;
+
+        qInfo() << "[QDBConnection] 执行开始 taskId=" << task.taskId
+                << "unitCount=" << task.sqlList.size();
 
         // 健康检查：使用 SELECT 1 真实检测连接是否存活
         // isOpen() 在 TCP 断开后仍返回 true，不能作为判断依据
@@ -356,6 +363,7 @@ void QDBConnection::execTask(const DBTask& task, DBTaskResult& outResult)
         }
 
         QJsonObject resultObj;
+        qint64 totalRows = 0;
 
         // 按顺序串行执行所有SQL单元
         for (int i = 0; i < task.sqlList.size(); ++i)
@@ -376,16 +384,15 @@ void QDBConnection::execTask(const DBTask& task, DBTaskResult& outResult)
                 outResult.errMsg = m_db.lastError().text();
                 outResult.errSql = unit.sql;
                 outResult.errUnitIndex = i;
-                // 强制清空结果JSON
+                // 强制清空结果
                 outResult.resultJson = QJsonDocument();
                 return;
             }
 
-            // 将执行结果组装到JSON（包括查询和修改操作）
-            if (!resultArray.isEmpty())
-            {
+            if (!resultArray.isEmpty()) {
                 resultObj[unit.jsonKey] = resultArray;
             }
+            totalRows += resultArray.size();
         }
 
         // 全部SQL执行成功，提交事务
@@ -409,7 +416,13 @@ void QDBConnection::execTask(const DBTask& task, DBTaskResult& outResult)
         outResult.isSuccess = true;
         outResult.errCode = DBErrCode::SUCCESS;
         outResult.errUnitIndex = -1;
+        // 统一构造 QJsonDocument（resultObj 的键即各 SqlUnit 的 jsonKey/tag）
         outResult.resultJson = QJsonDocument(resultObj);
+
+        qInfo() << "[QDBConnection] 任务完成 taskId=" << task.taskId
+                << "isSuccess=" << outResult.isSuccess
+                << "rows=" << totalRows
+                << "elapsed=" << taskTimer.elapsed() << "ms";
     } catch (const QException& e) {
         qCritical() << "Exception in QDBConnection::execTask:" << e.what();
         

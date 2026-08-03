@@ -40,12 +40,11 @@ struct DBTaskManagerConfig
     TaskRetryMode   retryMode = TaskRetryMode::NoRetry;        ///< 任务重试模式
     int             maxRetryCount = 3;    ///< 最大重试次数
     int             retryIntervalMs = 5000;  ///< 重试间隔(毫秒)
-    bool            enableTaskDelay = false;  ///< 是否开启任务延时执行
     int             taskDelayMs = 200;      ///< 任务延时时长(毫秒)
-
-    bool            enableBatchEnqueue = false;  ///< 是否开启批量入队
     int             batchIntervalMs = 1000;     ///< 批量入队间隔(毫秒)
     int             batchMaxSize = 10;        ///< 单次最大批量大小
+    bool            enableTaskDelay = false;  ///< 是否开启任务延时执行
+    bool            enableBatchEnqueue = false;  ///< 是否开启批量入队
 
     DBConfig        dbConnConfig;     ///< 内嵌数据库连接配置
 };

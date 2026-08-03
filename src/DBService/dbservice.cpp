@@ -6,6 +6,9 @@
 #include <QVariantMap>
 #include <QVector>
 
+// 前置声明：统计结果JSON中的总行数（所有 jsonKey 数组长度之和），用于日志打点
+static qint64 countResultRows(const QJsonDocument& doc);
+
 DBService::DBService(TaskThreadModel model, QObject* parent)
     : QObject(parent)
     , m_serviceType(DBServiceType::Standard)
@@ -185,10 +188,14 @@ void DBService::onExecSqlList(const QVector<SqlTuple>& sqlList)
 
     DBTask task = DBTask::spawnRandomQUuidTask();
 
+    qint64 totalLen = 0;
     for (const SqlTuple& tuple : sqlList) {
         SqlUnit unit = SqlUnit::createSqlUnit(tuple.tag, tuple.sql, tuple.isModify);
         task.append(unit);
+        totalLen += tuple.sql.length();
     }
+    qInfo() << "[DBService] 收到请求 taskId=" << task.taskId
+            << "sqlCount=" << sqlList.size() << "totalLen=" << totalLen;
 
     {
         QMutexLocker locker(&m_pendingMutex);
@@ -215,10 +222,14 @@ void DBService::onExecSqlList(const QVector<SqlTuple>& sqlList, const QString& t
     task.taskId = taskId;
     task.requestTime = QDateTime::currentMSecsSinceEpoch();
 
+    qint64 totalLen = 0;
     for (const SqlTuple& tuple : sqlList) {
         SqlUnit unit = SqlUnit::createSqlUnit(tuple.tag, tuple.sql, tuple.isModify);
         task.append(unit);
+        totalLen += tuple.sql.length();
     }
+    qInfo() << "[DBService] 收到请求 taskId=" << task.taskId
+            << "sqlCount=" << sqlList.size() << "totalLen=" << totalLen;
 
     {
         QMutexLocker locker(&m_pendingMutex);
@@ -250,6 +261,12 @@ void DBService::onTaskManagerComplete(const DBTaskResult& result)
     // 转换结果（只传 rawJson，不调用 extractData）
     DBServiceResult serviceResult = convertResult(result, originalTupleList);
 
+    const qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - result.task.requestTime;
+    qInfo() << "[DBService] 回调 taskId=" << result.task.taskId
+            << "isSuccess=" << serviceResult.isSuccess
+            << "rows=" << countResultRows(serviceResult.rawJson)
+            << "elapsed=" << elapsed << "ms";
+
     // 唯一的信号发射
     emit sigExecFinished(serviceResult);
 }
@@ -271,6 +288,22 @@ DBServiceResult DBService::convertResult(const DBTaskResult& taskResult, const Q
     result.rawJson = taskResult.resultJson;
 
     return result;
+}
+
+// 统计结果JSON中的总行数（所有 jsonKey 数组长度之和），用于日志打点
+static qint64 countResultRows(const QJsonDocument& doc)
+{
+    if (doc.isEmpty() || !doc.isObject()) {
+        return 0;
+    }
+    qint64 rows = 0;
+    const QJsonObject rootObj = doc.object();
+    for (QJsonObject::const_iterator it = rootObj.begin(); it != rootObj.end(); ++it) {
+        if (it.value().isArray()) {
+            rows += it.value().toArray().size();
+        }
+    }
+    return rows;
 }
 
 QMap<QString, QVariant> DBService::extractData(const QJsonDocument& rawJson)

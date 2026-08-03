@@ -32,19 +32,20 @@ enum class DBErrCode
 
 /**
  * @brief 数据库连接配置结构体
+ * @note 字段按 8 字节成员在前、小字段集中尾部排列，减少 padding
  */
 struct DBConfig
 {
-    DBDriverType driverType;      ///< 数据库驱动类型
     QString      host;            ///< 数据库地址
-    quint16      port;            ///< 端口号
     QString      dbName;          ///< 数据库名
     QString      user;            ///< 登录用户名
     QString      password;        ///< 登录密码
 
-    bool         enableRetry = false;     ///< 是否开启连接重试
+    DBDriverType driverType;      ///< 数据库驱动类型
     int          retryTimes = 3;      ///< 最大重试次数
     int          retryIntervalMs = 1000; ///< 重试间隔(毫秒)
+    quint16      port;            ///< 端口号
+    bool         enableRetry = false;   ///< 是否开启连接重试
     bool         limitRetryCount = false; ///< 是否限制重试次数
 };
 

@@ -71,17 +71,8 @@ public:
 
     /**
      * @brief 将原始JSON结果转换为结构化数据
-     * @param rawJson 原始查询结果JSON
+     * @param rawJson 任务的原始查询结果JSON
      * @return 结构化数据，键为SqlUnit.tag，值为行数组(QVector<QVariantMap>)或修改结果(QVariantMap)
-     * 
-     * @note 默认 sigExecFinished 返回的 DBServiceResult.data 为空。
-     *       需要结构化数据时（如 UI 绑定），可调用此函数手动转换。
-     * @code
-     * connect(db, &DBService::sigExecFinished, this, [](const DBServiceResult& res) {
-     *     auto data = DBService::extractData(res.rawJson);
-     *     // data["users"] → QVector<QVariantMap>
-     * });
-     * @endcode
      */
     static QMap<QString, QVariant> extractData(const QJsonDocument& rawJson);
 

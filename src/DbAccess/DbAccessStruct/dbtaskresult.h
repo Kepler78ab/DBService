@@ -3,6 +3,7 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include "dbtask.h"
 #include "dbconfig.h"
 
@@ -14,18 +15,18 @@
  */
 struct DBTaskResult
 {
-    bool            isSuccess;     ///< 任务整体执行状态：true=成功 false=失败
     DBTask          task;          ///< 原始任务对象（透传），用于溯源
-    DBErrCode       errCode;       ///< 标准化错误码
     QString         errMsg;        ///< 错误文字描述
     QString         errSql;        ///< 执行失败的SQL原文
-    int             errUnitIndex;  ///< 出错SqlUnit下标(从0开始)，-1=无错误
     QJsonDocument   resultJson;    ///< 查询结果JSON，失败时强制清空
+    DBErrCode       errCode;       ///< 标准化错误码
+    int             errUnitIndex;  ///< 出错SqlUnit下标(从0开始)，-1=无错误
+    bool            isSuccess;     ///< 任务整体执行状态：true=成功 false=失败
 
     DBTaskResult()
-        : isSuccess(false)
-        , errCode(DBErrCode::SUCCESS)
+        : errCode(DBErrCode::SUCCESS)
         , errUnitIndex(-1)
+        , isSuccess(false)
     {}
 
     /**
