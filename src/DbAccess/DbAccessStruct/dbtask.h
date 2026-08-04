@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QString>
 #include <QtGlobal>
+#include "qjsonvalue.h"
 #include "sqlunit.h"
 #include <QDateTime>
 #include <QUuid>
