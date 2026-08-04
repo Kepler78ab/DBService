@@ -32,6 +32,8 @@
 ### 变更
 
 - 版本号升至 `v1.5.1`（`DBService.pro` `VERSION_PATCH = 1`、`DBService::currentVersion()` 返回 `v1.5.1`）。
+- **Debug/Release DLL 区分命名**：Debug → `DBServiced.dll`，Release → `DBService.dll`（避免混用）。
+- **DLL 嵌入版本资源**：通过 `version_info.rc`（右键属性 → 详细信息 → 产品版本 `1.5.1`）。
 
 ### 移除
 
@@ -48,7 +50,13 @@
 - `include/DBServicePool.h` — 新增（对外 API）
 - `src/DBService/dbservice.h` / `dbservice.cpp` — 新增 `pendingCount()`
 - `src/DBServicePool/` — 新增 DBServicePool 模块（.h/.cpp/.pri）
-- `src/DBService.pro` — 引入 DBServicePool 模块，版本号升至 1.5.1
+- `src/DBService.pro` — 引入 DBServicePool 模块、版本号升至 1.5.1、Debug/Release 区分 TARGET、RC_FILE 版本资源
+- `src/version_info.rc` — 新增，用于 DLL 版本资源
+
+## 迁移指南
+
+- **业务项目 .pro**：Debug 链接库名需从 `-lDBService` 改为 `-lDBServiced`（Release 不变）。
+- **运行时 DLL**：Debug 模式需部署 `DBServiced.dll`，Release 模式部署 `DBService.dll`。
 
 ## 用法示例
 

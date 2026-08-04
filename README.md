@@ -30,7 +30,7 @@
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
-| v1.5.1 | 2026-08-03 | 新增 DBServicePool（N 实例负载均衡分发 + 信号聚合）、DBService::pendingCount() |
+| v1.5.1 | 2026-08-03 | 新增 DBServicePool（N 实例负载均衡分发 + 信号聚合）、Debug/Release DLL 区分命名、DLL 版本资源 |
 | v1.5.0 | 2026-08-03 | 紧凑数据模型（columns 单存 + type 标记），rawJson 格式全面切换，性能/内存大幅下降 |
 | v1.4.1 | 2026-07-28 | BatchBuffer 共享指针、std::move 消除剩余深拷贝、Release 消除日志开销 |
 | v1.4.0 | 2026-07-28 | 合并信号、内存优化、extractData 按需调用、TaskNode 共享指针 |
@@ -45,10 +45,17 @@ DBService/
 ├── include/              ← 对外头文件（业务项目引用）
 ├── src/                  ← 源码
 │   ├── DBService.pro     ← DLL 构建工程
+│   ├── version_info.rc   ← DLL 版本资源（v1.5.1）
 │   ├── DBService/        ← DBService 核心模块
 │   ├── DBServicePool/    ← DBServicePool 拓展模块（v1.5.1）
 │   └── DbAccess/         ← 内部数据库访问层
-├── build/                ← 编译输出（Debug/Release 分别）
+├── lib/                  ← 编译输出
+│   ├── release/
+│   │   ├── DBService.dll     ← Release DLL
+│   │   └── libDBService.a
+│   └── debug/
+│       ├── DBServiced.dll    ← Debug DLL（d 后缀）
+│       └── libDBServiced.a
 ├── docs/                 ← 文档
 │   ├── config/           ← 默认配置文件
 │   ├── progress_docs/    ← 设计文档、改造记录

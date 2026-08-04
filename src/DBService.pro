@@ -3,8 +3,14 @@
 # ============================================
 
 TEMPLATE = lib
-TARGET = DBService
 CONFIG += dll
+
+# Debug/Release 区分 DLL 命名
+CONFIG(debug, debug|release) {
+    TARGET = DBServiced
+} else {
+    TARGET = DBService
+}
 
 QT = core sql
 CONFIG += c++11
@@ -17,9 +23,8 @@ msvc {
 VERSION_MAJOR = 1
 VERSION_MINOR = 5
 VERSION_PATCH = 1
-# 合成 VERSION，qmake 据此为 Windows DLL 生成版本资源（文件属性可见）
-VERSION = $$VERSION_MAJOR.$$VERSION_MINOR.$$VERSION_PATCH
-DEFINES += DBSERVICE_VERSION=\"$$VERSION\"
+# 通过 .rc 文件嵌入版本资源（避免 qmake VERSION 变量导致 DLL 文件名带后缀）
+RC_FILE = $$PWD/version_info.rc
 
 # Release 编译时消除调试日志开销
 CONFIG(release, debug|release) {
