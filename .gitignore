@@ -6,7 +6,6 @@
 build/*
 lib/*
 bin/*
-DBServiceStorageTest/*
 *.dll
 *.a
 # ======== IDE 项目文件 ========

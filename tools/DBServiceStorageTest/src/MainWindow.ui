@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>760</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>640</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>DBServiceStorageTest — DBService 大查询内存泄漏检验</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QGroupBox" name="groupConn">
+      <property name="title">
+       <string>数据库连接配置</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayoutConn">
+       <item row="0" column="0">
+        <widget class="QLabel" name="labelHost">
+         <property name="text">
+          <string>主机</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="editHost">
+         <property name="text">
+          <string>127.0.0.1</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QLabel" name="labelPort">
+         <property name="text">
+          <string>端口</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="3">
+        <widget class="QLineEdit" name="editPort">
+         <property name="text">
+          <string>3306</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="labelDbName">
+         <property name="text">
+          <string>库名</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="editDbName">
+         <property name="text">
+          <string>aaa</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QLabel" name="labelUser">
+         <property name="text">
+          <string>用户</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="3">
+        <widget class="QLineEdit" name="editUser">
+         <property name="text">
+          <string>root</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="labelPassword">
+         <property name="text">
+          <string>密码</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="editPassword">
+         <property name="text">
+          <string>123456</string>
+         </property>
+         <property name="echoMode">
+          <enum>QLineEdit::Password</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="3">
+        <spacer name="horizontalSpacerConn">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="groupSql">
+      <property name="title">
+       <string>SQL 语句（编写你的大查询，例如 SELECT * FROM 大表）</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayoutSql">
+       <item>
+        <widget class="QPlainTextEdit" name="editSql">
+         <property name="placeholderText">
+          <string>在此编写 SQL 查询语句…</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayoutBtn">
+      <item>
+       <widget class="QPushButton" name="btnSend">
+        <property name="text">
+         <string>发送请求</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+        <widget class="QPushButton" name="btnReinit">
+         <property name="text">
+          <string>重新初始化</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnHeapMin">
+         <property name="text">
+          <string>清理堆缓存</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+         </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="groupAuto">
+      <property name="title">
+       <string>自动化测试（按间隔自动执行 SQL 框中的语句）</string>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayoutAuto">
+       <item>
+        <widget class="QLabel" name="labelInterval">
+         <property name="text">
+          <string>间隔(秒)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="spinInterval">
+         <property name="minimum">
+          <double>0.5</double>
+         </property>
+         <property name="maximum">
+          <double>60.0</double>
+         </property>
+         <property name="singleStep">
+          <double>0.5</double>
+         </property>
+         <property name="decimals">
+          <number>1</number>
+         </property>
+         <property name="value">
+          <double>2.0</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="labelCount">
+         <property name="text">
+          <string>次数</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="spinCount">
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>9999</number>
+         </property>
+         <property name="singleStep">
+          <number>1</number>
+         </property>
+         <property name="value">
+          <number>10</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnAuto">
+         <property name="text">
+          <string>自动执行</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacerAuto">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="groupStats">
+      <property name="title">
+       <string>统计与内存</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayoutStats">
+       <item row="0" column="0">
+        <widget class="QLabel" name="labelTotal">
+         <property name="text">
+          <string>总请求:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="lblTotal">
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QLabel" name="labelSuccess">
+         <property name="text">
+          <string>成功:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="3">
+        <widget class="QLabel" name="lblSuccess">
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="4">
+        <widget class="QLabel" name="labelFail">
+         <property name="text">
+          <string>失败:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="5">
+        <widget class="QLabel" name="lblFail">
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="6">
+        <spacer name="horizontalSpacerStats">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="labelMemory">
+         <property name="text">
+          <string>进程内存:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1" colspan="3">
+        <widget class="QLabel" name="lblMemory">
+         <property name="text">
+          <string>--</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="labelLastResult">
+         <property name="text">
+          <string>最近响应:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1" colspan="6">
+        <widget class="QLabel" name="lblLastResult">
+         <property name="text">
+          <string>--</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="groupMemLog">
+      <property name="title">
+       <string>内存变化记录（时间 | 内存 | 增量，变化超过 0.5MB 时记录）</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayoutMemLog">
+       <item>
+        <widget class="QPlainTextEdit" name="editMemLog">
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+         <property name="placeholderText">
+          <string>内存变化记录将在此显示…</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
